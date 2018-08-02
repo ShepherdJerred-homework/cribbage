@@ -44,8 +44,8 @@ public class cribbage {
         PrintWriter printWriter = new PrintWriter(file);
 
         solutions.forEach(solution -> {
-            System.out.println(solution.handValue);
-            printWriter.println(solution.handValue);
+            System.out.println(solution.points);
+            printWriter.println(solution.points);
         });
 
         printWriter.close();
@@ -58,30 +58,30 @@ public class cribbage {
     }
 
     private static Solution solveInput(Input input) {
-        int score;
+        int points;
 
-        int pointsForPairsOfSameSuit = calculatePointsForNumberOfPairsOfSameSuit(input);
-        int pointsForHandAndStarterOfSameSuit = calculatePointsForHandAndStarterOfSameSuit(input);
-        int pointsForStraights = calculatePointsForStraights(input);
-        int pointsForCombinationsEqualToFifteen = calculatePointsForCombinationsOfValuesEqualToFifteen(input);
-        int pointsForJackStarter = calculatePointsForHoldingAJackTheSameSuitAsTheStarter(input);
+        int pointsForPairs = calculatePointsForPairs(input);
+        int pointsForFlushes = calculatePointsForFlushes(input);
+        int pointsForRuns = calculatePointsForRuns(input);
+        int pointsForFifteens = calculatePointsForFifteens(input);
+        int pointsForNobs = calculatePointsForNobs(input);
 
-        score = pointsForPairsOfSameSuit + pointsForHandAndStarterOfSameSuit + pointsForStraights + pointsForCombinationsEqualToFifteen + pointsForJackStarter;
+        points = pointsForPairs + pointsForFlushes + pointsForRuns + pointsForFifteens + pointsForNobs;
 
-        System.out.println(String.format("Cards: %s\nPairs (value): %s\nSuit: %s\nStraights: %s\nCombos (15): %s\nJack: %s\nTotal: %s\n",
-                input.cards,
-                pointsForPairsOfSameSuit,
-                pointsForHandAndStarterOfSameSuit,
-                pointsForStraights,
-                pointsForCombinationsEqualToFifteen,
-                pointsForJackStarter,
-                score));
+        System.out.println(String.format("Cards\n%s\n\nPairs: %s\nFlushes: %s\nRuns: %s\nFifteens: %s\nNobs: %s\nTotal: %s\n\n",
+                String.join("\n", input.cards.stream().map(Card::toString).collect(Collectors.toList())),
+                pointsForPairs,
+                pointsForFlushes,
+                pointsForRuns,
+                pointsForFifteens,
+                pointsForNobs,
+                points));
 
-        return new Solution(score);
+        return new Solution(points);
     }
 
-    private static int calculatePointsForHoldingAJackTheSameSuitAsTheStarter(Input input) {
-        List<Card> hand = input.hand;
+    private static int calculatePointsForNobs(Input input) {
+        List<Card> hand = input.cards;
         Card starter = input.starter;
 
         for (Card card : hand) {
@@ -93,31 +93,24 @@ public class cribbage {
         return 0;
     }
 
-    private static int calculatePointsForCombinationsOfValuesEqualToFifteen(Input input) {
-        Set<Pair> pairs = new HashSet<>();
-
-        LinkedList<Card> cards = input.cards;
-
-        for (int inner = 0; inner < cards.size(); inner++) {
-            for (int outer = 0; outer < cards.size(); outer++) {
-                if (inner == outer || inner < outer) {
-                    continue;
-                }
-                pairs.add(new Pair(cards.get(inner), cards.get(outer)));
-            }
-        }
+    private static int calculatePointsForFifteens(Input input) {
+        Set<Pair> pairs = input.pairs;
 
 //        System.out.println(pairs);
-//        System.out.println(pairs.stream().filter(pair -> pair.pairValue() == 15).collect(Collectors.toSet()));
 
         return Math.toIntExact(pairs.stream().filter(pair -> pair.pairValue() == 15).count()) * NUMBER_OF_POINTS_PER_COMBINATION_EQUAL_TO_FIFTEEN;
     }
 
-    private static int calculatePointsForStraights(Input input) {
+    private static int calculatePointsForRuns(Input input) {
+        LinkedList<Card> cards = input.cards;
+
+        // Distinct straights
+        // Two cards with the same value but different suits can count for different straights
+
         return 0;
     }
 
-    private static int calculatePointsForHandAndStarterOfSameSuit(Input input) {
+    private static int calculatePointsForFlushes(Input input) {
         List<Card> hand = input.hand;
         Card starter = input.starter;
 
@@ -139,22 +132,10 @@ public class cribbage {
         }
     }
 
-    private static int calculatePointsForNumberOfPairsOfSameSuit(Input input) {
-        int numberOfPairs = 0;
+    private static int calculatePointsForPairs(Input input) {
+        Set<Pair> pairs = input.pairs;
 
-        LinkedList<Card> cards = input.cards;
-
-        Set<Card.Value> pairedValues = new HashSet<>();
-        for (Card outer : cards) {
-            for (Card inner : cards) {
-                if (outer.value == inner.value && outer != inner && !pairedValues.contains(outer.value)) {
-                    numberOfPairs += 1;
-                    pairedValues.add(outer.value);
-                }
-            }
-        }
-
-//        System.out.println(String.format("Paired Values: %s", pairedValues));
+        int numberOfPairs = Math.toIntExact(pairs.stream().filter(Pair::isPairSameValue).count());
 
         return numberOfPairs * NUMBER_OF_POINTS_PER_PAIR;
     }
@@ -227,11 +208,23 @@ public class cribbage {
         LinkedList<Card> cards;
         List<Card> hand;
         Card starter;
+        Set<Pair> pairs;
 
         public Input(LinkedList<Card> cards) {
             this.cards = cards;
-            this.hand = cards.subList(0, cards.size() - 1);
+            this.hand = new ArrayList<>(cards).subList(0, cards.size() - 1);
             this.starter = cards.getLast();
+            cards.sort(Comparator.comparingInt(Card::getValueAsInt));
+
+            pairs = new HashSet<>();
+            for (int inner = 0; inner < cards.size(); inner++) {
+                for (int outer = 0; outer < cards.size(); outer++) {
+                    if (inner == outer || inner < outer) {
+                        continue;
+                    }
+                    pairs.add(new Pair(cards.get(inner), cards.get(outer)));
+                }
+            }
         }
 
         @Override
@@ -243,10 +236,10 @@ public class cribbage {
     }
 
     private static class Solution {
-        int handValue;
+        int points;
 
-        public Solution(int handValue) {
-            this.handValue = handValue;
+        public Solution(int points) {
+            this.points = points;
         }
     }
 
@@ -261,6 +254,10 @@ public class cribbage {
 
         public int pairValue() {
             return cardOne.getValueAsInt() + cardTwo.getValueAsInt();
+        }
+
+        public boolean isPairSameValue() {
+            return cardOne.value == cardTwo.value;
         }
 
         public boolean contains(Card card) {
@@ -341,10 +338,7 @@ public class cribbage {
 
         @Override
         public String toString() {
-            return "Card{" +
-                    "value=" + value +
-                    ", suit=" + suit +
-                    '}';
+            return String.format("v=%s s=%s", value, suit);
         }
 
         @Override
