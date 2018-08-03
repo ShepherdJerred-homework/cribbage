@@ -103,9 +103,35 @@ public class cribbage {
 
     private static int calculatePointsForRuns(Input input) {
         LinkedList<Card> cards = input.cards;
+        
+        Node head = new Node(null, null);
 
-        // Distinct straights
-        // Two cards with the same value but different suits can count for different straights
+        int childValue = -1;
+        List<Node> parents = new ArrayList<>();
+        parents.add(head);
+
+        for (Card card : cards) {
+            Node firstParent = parents.get(0);
+
+            Node newNode = new Node(card, parents);
+            int cardValue = card.getValueAsInt();
+
+            if (childValue == -1) {
+                // first run
+                parents.forEach(parent -> parent.children.add(newNode));
+                childValue = card.getValueAsInt();
+            } else if (cardValue == childValue) {
+                // sibling
+                parents.forEach(parent -> parent.children.add(newNode));
+            } else {
+                // child on new level
+                parents = firstParent.children;
+                parents.forEach(parent -> parent.children.add(newNode));
+                childValue = card.getValueAsInt();
+            }
+        }
+
+        System.out.println(head);
 
         return 0;
     }
@@ -200,7 +226,27 @@ public class cribbage {
             case 'K':
                 return Card.Value.KING;
             default:
-                throw new IllegalArgumentException(String.format("Cannot convert %s to a value", c));
+                throw new IllegalArgumentException(String.format("Cannot convert %s to a card", c));
+        }
+    }
+
+    private static class Node {
+        Card card;
+        List<Node> parent;
+        List<Node> children;
+
+        public Node(Card card, List<Node> parent) {
+            this.card = card;
+            this.parent = null;
+            this.children = new ArrayList<>();
+        }
+
+        @Override
+        public String toString() {
+            return "Node{" +
+                    "card=" + card +
+                    ", children=" + children +
+                    '}';
         }
     }
 
@@ -324,7 +370,7 @@ public class cribbage {
                 case KING:
                     return 10;
                 default:
-                    throw new IllegalArgumentException(String.format("Cannot get the int value of %s", value));
+                    throw new IllegalArgumentException(String.format("Cannot get the int card of %s", value));
             }
         }
 
