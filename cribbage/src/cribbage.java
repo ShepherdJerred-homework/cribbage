@@ -103,7 +103,7 @@ public class cribbage {
 
     private static int calculatePointsForRuns(Input input) {
         LinkedList<Card> cards = input.cards;
-        
+
         Node head = new Node(null, null);
 
         int childValue = -1;
