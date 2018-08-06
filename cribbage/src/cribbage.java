@@ -10,6 +10,7 @@ import java.util.stream.Stream;
 
 /*
  * Abandon hope all ye who enter here
+ * Cases 12 and 13 are still not passing, not sure why
  */
 public class cribbage {
 
@@ -46,10 +47,13 @@ public class cribbage {
         File file = new File("cribbage.out");
         PrintWriter printWriter = new PrintWriter(file);
 
-        solutions.forEach(solution -> {
-            System.out.println(solution.points);
-            printWriter.println(solution.points);
-        });
+        int counter = 1;
+        for (Solution solution : solutions) {
+            System.out.println(String.format("Case #%s", counter));
+            System.out.println(solution.toString());
+            printWriter.println(solution.getTotalPoints());
+            counter += 1;
+        }
 
         printWriter.close();
     }
@@ -61,26 +65,19 @@ public class cribbage {
     }
 
     private static Solution solveInput(Input input) {
-        int points;
-
         int pointsForPairs = calculatePointsForPairs(input);
         int pointsForFlushes = calculatePointsForFlushes(input);
         int pointsForRuns = calculatePointsForRuns(input);
         int pointsForFifteens = calculatePointsForFifteens(input);
         int pointsForNobs = calculatePointsForNobs(input);
 
-        points = pointsForPairs + pointsForFlushes + pointsForRuns + pointsForFifteens + pointsForNobs;
-
-        System.out.println(String.format("Cards\n%s\n\nPairs: %s\nFlushes: %s\nRuns: %s\nFifteens: %s\nNobs: %s\nTotal: %s\n\n",
-                String.join("\n", input.cards.stream().map(Card::toString).collect(Collectors.toList())),
+        return new Solution(
                 pointsForPairs,
                 pointsForFlushes,
                 pointsForRuns,
                 pointsForFifteens,
-                pointsForNobs,
-                points));
-
-        return new Solution(points);
+                pointsForNobs
+        );
     }
 
     private static int calculatePointsForNobs(Input input) {
@@ -97,39 +94,37 @@ public class cribbage {
     }
 
     private static int calculatePointsForFifteens(Input input) {
-        int fifteens = 0;
         List<Card> cards = input.cards;
 
-        // Iterate over each card
-        for (int i1 = 0; i1 < cards.size(); i1++) {
-            Card card = cards.get(i1);
-
-            // Iterate over each card after this one
-            for (int i2 = i1 + 1; i2 < cards.size(); i2++) {
-                int total = card.getValueAsInt(false) + cards.get(i2).getValueAsInt(false);
-
-//                System.out.println(String.format("i1: %s\ni2: %s\ntotal: %s", card, cards.get(i2), total));
-
-                if (total == 15) {
-                    fifteens += 1;
-                } else if (total > 15) {
-                    continue;
-                }
-
-                for (int i3 = i2 + 1; i3 < cards.size(); i3++) {
-                    total += cards.get(i3).getValueAsInt(false);
-//                    System.out.println(String.format("i3: %s\ntotal: %s", cards.get(i3), total));
-                    if (total == 15) {
-                        fifteens += 1;
-                        break;
-                    } else if (total > 15) {
-                        break;
-                    }
-                }
-            }
+        int fifteens = 0;
+        for (int i = 0; i < cards.size(); i++) {
+            fifteens += fifteen(cards, i, 0);
         }
 
         return fifteens * NUMBER_OF_POINTS_PER_COMBINATION_EQUAL_TO_FIFTEEN;
+    }
+
+    private static int fifteen(List<Card> cards, int index, int acc) {
+        Card card = cards.get(index);
+        int cardValue = card.getValueAsInt(false);
+        int comb = acc + cardValue;
+
+//        System.out.println(String.format("card: %s\nindex: %s\nacc: %s", card, index, acc));
+
+        if (comb == 15) {
+//            System.out.println(String.format("fifteen on %s", card));
+            return 1;
+        } else if (comb < 15) {
+            int fifteens = 0;
+            // keep going, merge answers
+            for (int i = index + 1; i < cards.size(); i++) {
+                fifteens += fifteen(cards, i, comb);
+            }
+            return fifteens;
+        } else {
+            // too high
+            return 0;
+        }
     }
 
     private static int calculatePointsForRuns(Input input) {
@@ -338,10 +333,37 @@ public class cribbage {
     }
 
     private static class Solution {
-        int points;
+        int pointsForPairs;
+        int pointsForFlushes;
+        int pointsForRuns;
+        int pointsForFifteens;
+        int pointsForNobs;
 
-        public Solution(int points) {
-            this.points = points;
+        public Solution(int pointsForPairs, int pointsForFlushes, int pointsForRuns, int pointsForFifteens, int pointsForNobs) {
+            this.pointsForPairs = pointsForPairs;
+            this.pointsForFlushes = pointsForFlushes;
+            this.pointsForRuns = pointsForRuns;
+            this.pointsForFifteens = pointsForFifteens;
+            this.pointsForNobs = pointsForNobs;
+        }
+
+        public int getTotalPoints() {
+            return pointsForPairs
+                    + pointsForFlushes
+                    + pointsForRuns
+                    + pointsForFifteens
+                    + pointsForNobs;
+        }
+
+        @Override
+        public String toString() {
+            return String.format("Pairs: %s\nFlushes: %s\nRuns: %s\nFifteens: %s\nNobs: %s\nTotal: %s\n\n",
+                    pointsForPairs,
+                    pointsForFlushes,
+                    pointsForRuns,
+                    pointsForFifteens,
+                    pointsForNobs,
+                    getTotalPoints());
         }
     }
 
