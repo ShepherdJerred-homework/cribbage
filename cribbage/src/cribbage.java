@@ -18,7 +18,7 @@ public class cribbage {
     public static void main(String[] args) throws FileNotFoundException {
         LinkedList<Input> inputs = getInput();
         LinkedList<Solution> solutions = solveInputs(inputs);
-//        printSolutions(solutions);
+        printSolutions(solutions);
     }
 
     private static LinkedList<Input> getInput() throws FileNotFoundException {
@@ -81,7 +81,7 @@ public class cribbage {
     }
 
     private static int calculatePointsForNobs(Input input) {
-        List<Card> hand = input.cards;
+        List<Card> hand = input.hand;
         Card starter = input.starter;
 
         for (Card card : hand) {
@@ -93,6 +93,7 @@ public class cribbage {
         return 0;
     }
 
+    // TODO
     private static int calculatePointsForFifteens(Input input) {
         Set<Pair> pairs = input.pairs;
 
@@ -104,36 +105,80 @@ public class cribbage {
     private static int calculatePointsForRuns(Input input) {
         LinkedList<Card> cards = input.cards;
 
-        Node head = new Node(null, null);
+        List<RunInfo> allRuns = new ArrayList<>();
+        int bestRunLength = 0;
 
-        int childValue = -1;
-        List<Node> parents = new ArrayList<>();
-        parents.add(head);
+        // iterate over all cards, let them find their largest runs
+        for (int i = 0; i < cards.size(); i++) {
+            RunInfo run = findBestRunStartingAtCard(cards, i);
+            allRuns.add(run);
 
-        for (Card card : cards) {
-            Node firstParent = parents.get(0);
+//            System.out.println(String.format("Card: %s\nRun:%s", cards.get(i), run));
 
-            Node newNode = new Node(card, parents);
-            int cardValue = card.getValueAsInt();
-
-            if (childValue == -1) {
-                // first run
-                parents.forEach(parent -> parent.children.add(newNode));
-                childValue = card.getValueAsInt();
-            } else if (cardValue == childValue) {
-                // sibling
-                parents.forEach(parent -> parent.children.add(newNode));
-            } else {
-                // child on new level
-                parents = firstParent.children;
-                parents.forEach(parent -> parent.children.add(newNode));
-                childValue = card.getValueAsInt();
+            // only replace run if it is better
+            if (bestRunLength == 0 || run.runLength > bestRunLength) {
+                bestRunLength = run.runLength;
             }
         }
 
-        System.out.println(head);
+        int totalNumberOfRunsOfBestLength = 0;
+        for (RunInfo run : allRuns) {
+            if (run.runLength == bestRunLength) {
+                totalNumberOfRunsOfBestLength += run.numberOfRuns;
+            }
+        }
 
-        return 0;
+        if (bestRunLength >= 3) {
+            return totalNumberOfRunsOfBestLength * bestRunLength;
+        } else {
+            return 0;
+        }
+    }
+
+    private static RunInfo findBestRunStartingAtCard(LinkedList<Card> cards, int index) {
+        Card card = cards.get(index);
+        int cardValue = card.getValueAsInt();
+
+        // If we're at the very last card, let's return a run of '1'
+        if (index != cards.size() - 1) {
+            List<RunInfo> runsAfterThisNumber = new ArrayList<>();
+
+            int bestRunLength = 0;
+
+            // Find best runs starting at the next card
+            for (int i = index + 1; i < cards.size(); i++) {
+                Card nextCard = cards.get(i);
+                int nextCardValue = nextCard.getValueAsInt();
+
+                // iterate over cards that have a value one more than this one
+                if (nextCardValue == cardValue + 1) {
+                    RunInfo run = findBestRunStartingAtCard(cards, i);
+                    if (run.runLength > bestRunLength) {
+                        bestRunLength = run.runLength;
+                    }
+                    runsAfterThisNumber.add(run);
+                } else if (nextCardValue == cardValue) {
+                    continue;
+                } else {
+                    break;
+                }
+            }
+
+            if (bestRunLength != 0) {
+                RunInfo runInfo = new RunInfo(bestRunLength + 1, 0);
+                for (RunInfo run : runsAfterThisNumber) {
+                    // merge all runs that match the best
+                    if (run.runLength == bestRunLength) {
+                        runInfo.numberOfRuns += 1;
+                    }
+                }
+                return runInfo;
+            } else {
+                return new RunInfo(1, 1);
+            }
+        } else {
+            return new RunInfo(1, 1);
+        }
     }
 
     private static int calculatePointsForFlushes(Input input) {
@@ -230,26 +275,6 @@ public class cribbage {
         }
     }
 
-    private static class Node {
-        Card card;
-        List<Node> parent;
-        List<Node> children;
-
-        public Node(Card card, List<Node> parent) {
-            this.card = card;
-            this.parent = null;
-            this.children = new ArrayList<>();
-        }
-
-        @Override
-        public String toString() {
-            return "Node{" +
-                    "card=" + card +
-                    ", children=" + children +
-                    '}';
-        }
-    }
-
     private static class Input {
         LinkedList<Card> cards;
         List<Card> hand;
@@ -286,6 +311,24 @@ public class cribbage {
 
         public Solution(int points) {
             this.points = points;
+        }
+    }
+
+    private static class RunInfo {
+        int runLength;
+        int numberOfRuns;
+
+        public RunInfo(int runLength, int numberOfRuns) {
+            this.runLength = runLength;
+            this.numberOfRuns = numberOfRuns;
+        }
+
+        @Override
+        public String toString() {
+            return "RunInfo{" +
+                    "runLength=" + runLength +
+                    ", numberOfRuns=" + numberOfRuns +
+                    '}';
         }
     }
 
