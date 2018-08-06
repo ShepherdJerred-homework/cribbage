@@ -8,6 +8,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+/*
+ * Abandon hope all ye who enter here
+ */
 public class cribbage {
 
     private static final int NUMBER_OF_POINTS_PER_COMBINATION_EQUAL_TO_FIFTEEN = 2;
@@ -93,13 +96,40 @@ public class cribbage {
         return 0;
     }
 
-    // TODO
     private static int calculatePointsForFifteens(Input input) {
-        Set<Pair> pairs = input.pairs;
+        int fifteens = 0;
+        List<Card> cards = input.cards;
 
-//        System.out.println(pairs);
+        // Iterate over each card
+        for (int i1 = 0; i1 < cards.size(); i1++) {
+            Card card = cards.get(i1);
 
-        return Math.toIntExact(pairs.stream().filter(pair -> pair.pairValue() == 15).count()) * NUMBER_OF_POINTS_PER_COMBINATION_EQUAL_TO_FIFTEEN;
+            // Iterate over each card after this one
+            for (int i2 = i1 + 1; i2 < cards.size(); i2++) {
+                int total = card.getValueAsInt(false) + cards.get(i2).getValueAsInt(false);
+
+//                System.out.println(String.format("i1: %s\ni2: %s\ntotal: %s", card, cards.get(i2), total));
+
+                if (total == 15) {
+                    fifteens += 1;
+                } else if (total > 15) {
+                    continue;
+                }
+
+                for (int i3 = i2 + 1; i3 < cards.size(); i3++) {
+                    total += cards.get(i3).getValueAsInt(false);
+//                    System.out.println(String.format("i3: %s\ntotal: %s", cards.get(i3), total));
+                    if (total == 15) {
+                        fifteens += 1;
+                        break;
+                    } else if (total > 15) {
+                        break;
+                    }
+                }
+            }
+        }
+
+        return fifteens * NUMBER_OF_POINTS_PER_COMBINATION_EQUAL_TO_FIFTEEN;
     }
 
     private static int calculatePointsForRuns(Input input) {
@@ -137,7 +167,7 @@ public class cribbage {
 
     private static RunInfo findBestRunStartingAtCard(LinkedList<Card> cards, int index) {
         Card card = cards.get(index);
-        int cardValue = card.getValueAsInt();
+        int cardValue = card.getValueAsInt(true);
 
         // If we're at the very last card, let's return a run of '1'
         if (index != cards.size() - 1) {
@@ -148,7 +178,7 @@ public class cribbage {
             // Find best runs starting at the next card
             for (int i = index + 1; i < cards.size(); i++) {
                 Card nextCard = cards.get(i);
-                int nextCardValue = nextCard.getValueAsInt();
+                int nextCardValue = nextCard.getValueAsInt(true);
 
                 // iterate over cards that have a value one more than this one
                 if (nextCardValue == cardValue + 1) {
@@ -191,6 +221,7 @@ public class cribbage {
                 suit = card.suit;
             } else {
                 if (card.suit != suit) {
+//                    System.out.println(String.format("%s | %s", card.suit, suit));
                     return 0;
                 }
             }
@@ -285,7 +316,7 @@ public class cribbage {
             this.cards = cards;
             this.hand = new ArrayList<>(cards).subList(0, cards.size() - 1);
             this.starter = cards.getLast();
-            cards.sort(Comparator.comparingInt(Card::getValueAsInt));
+            cards.sort(Comparator.comparingInt(c -> c.getValueAsInt(true)));
 
             pairs = new HashSet<>();
             for (int inner = 0; inner < cards.size(); inner++) {
@@ -342,7 +373,7 @@ public class cribbage {
         }
 
         public int pairValue() {
-            return cardOne.getValueAsInt() + cardTwo.getValueAsInt();
+            return cardOne.getValueAsInt(false) + cardTwo.getValueAsInt(false);
         }
 
         public boolean isPairSameValue() {
@@ -384,7 +415,7 @@ public class cribbage {
             this.suit = suit;
         }
 
-        public int getValueAsInt() {
+        public int getValueAsInt(boolean straight) {
             switch (value) {
                 case ACE:
                     return 1;
@@ -407,11 +438,11 @@ public class cribbage {
                 case TEN:
                     return 10;
                 case JACK:
-                    return 10;
+                    return straight ? 11 : 10;
                 case QUEEN:
-                    return 10;
+                    return straight ? 12 : 10;
                 case KING:
-                    return 10;
+                    return straight ? 13 : 10;
                 default:
                     throw new IllegalArgumentException(String.format("Cannot get the int card of %s", value));
             }
